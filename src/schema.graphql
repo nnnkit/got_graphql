@@ -7,6 +7,9 @@ type Mutation {
   deletePost(id: ID!): Post
   publish(id: ID!): Post
 }
+type Subscription {
+  posts: [Post!]!
+}
 type Post {
   id: ID!
   title: String!

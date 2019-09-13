@@ -1,4 +1,7 @@
-const { GraphQLServer } = require('graphql-yoga');
+const { GraphQLServer, PubSub } = require('graphql-yoga');
+const channel = Math.random()
+  .toString(36)
+  .substr(2, 15);
 const posts = [];
 let postIds = 0;
 const resolvers = {
@@ -19,6 +22,7 @@ const resolvers = {
         published: false,
       };
       posts.push(post);
+      pubsub.publish(channel, { posts });
       return post;
     },
     addComment: (parent, args) => {
@@ -29,6 +33,7 @@ const resolvers = {
             content: args.content,
           };
           post.comments.push(comment);
+          pubsub.publish(channel, { posts });
         }
       });
       return args.id;
@@ -36,13 +41,26 @@ const resolvers = {
     publish: (parent, args) => {
       const postIndex = posts.findIndex(post => post.id === args.id);
       posts[postIndex].published = true;
+      pubsub.publish(channel, { posts });
       return posts[postIndex];
     },
   },
+  Subscription: {
+    posts: {
+      subscribe: (parent, args, { pubsub }) => {
+        setImmediate(() => pubsub.publish(channel, { posts }));
+        return pubsub.asyncIterator(channel);
+      },
+    },
+  },
 };
+
+const pubsub = new PubSub();
+
 const server = new GraphQLServer({
   typeDefs: './src/schema.graphql',
   resolvers,
+  context: { pubsub },
 });
 
 server.start(
